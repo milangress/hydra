@@ -2,7 +2,9 @@ import repl from './repl-v2.js'
 // console.log('ENVIRONMENT IS', process.env.NODE_ENV)
 
 export default function store(state, emitter) {
-  state.showInfo = false
+  // Check if we're in development/localhost
+  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost'
+  state.showInfo = !isDev // Set to false in development, true otherwise
   state.showUI = true
   state.showExtensions = false
   state.errorMessage = ''
