@@ -10,6 +10,9 @@ import {autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap} fr
 import {lintKeymap} from "@codemirror/lint"
 import { oneDark, oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 import { hydraSyntaxStyle, hydraEditorTheme } from "./hydra-cm6-theme.js";
+import { hydraSuggestions, hydraCompletionTheme } from "./hydra-completions.js";
+
+
 // import { flashTheme } from './flash-code/flashTheme.js';
 //  import { flash } from './flash-code'
 
@@ -65,7 +68,10 @@ export const hydraSetup = (() => [
     syntaxHighlighting(oneDarkHighlightStyle, {fallback: true}),
     bracketMatching(),
     closeBrackets(),
-    autocompletion(),
+    autocompletion({
+      override: [hydraSuggestions]
+    }),
+    hydraCompletionTheme,
     rectangularSelection(),
     crosshairCursor(),
     // highlightActiveLine(),
@@ -84,6 +90,8 @@ export const hydraSetup = (() => [
     oneDark,
     hydraEditorTheme
   ])()
+
+
   
   /// A minimal set of extensions to create a functional editor. Only
   /// includes [the default keymap](#commands.defaultKeymap), [undo

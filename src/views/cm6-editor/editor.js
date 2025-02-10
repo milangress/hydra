@@ -5,7 +5,8 @@ import { hydraSetup } from "./editor-setup.js"
 import { javascript } from "@codemirror/lang-javascript"
 import { flashCode, flashAll, flashTheme } from "./hydra-flash.js";
 import hydraKeymaps from "./hydra-keymaps.js"
-
+// import { hydraCompletion } from "./hydra-completions.js"
+// import { autocompletion } from "@codemirror/autocomplete"
 import EventEmitter from 'nanobus'
 import beautify from 'js-beautify'
 
@@ -30,7 +31,6 @@ export default class Editor extends EventEmitter {
         keymap.of(hydraKeymaps(emit))
       ],
       parent: parent,
-
     })
     // window.cm = this.cm
     // window.editor = this
