@@ -1,195 +1,14 @@
-import { CompletionContext } from '@codemirror/autocomplete'
-import glslFunctions from 'hydra-synth/src/glsl/glsl-functions.js'
 import {syntaxTree} from "@codemirror/language"
-import { EditorView } from "@codemirror/view"
-// Function type to icon mapping
-const TYPE_ICONS = {
-  src: '🏞️ ', // Source generators
-  coord: '💥 ', // Geometry operations
-  color: '🤒 ', // Color operations
-  combine: '💯 ', // Blend operations
-  combineCoord: '🍣 ', // Modulate operations
-  external: '⛓️ ',  // External sources
-  output: '🌍 '  // Output buffers
-}
+import { HYDRA_GLOBALS, EXTERNAL_SOURCES, hydraFunctions } from "./completionData"
 
+import { completionTheme } from "./completionTheme"
 
-const cssIconClasses = Object.entries(TYPE_ICONS).map(([type, icon]) => {
-  return `.cm-completionIcon-${type}:after { content: '${icon}'; }`
-})
-
-
-// Function to get completion class based on type
-function getCompletionClass(type, isFunction = false) {
-  const baseClass = type === 'src' ? 'hydraSrc' :
-                   type === 'color' ? 'hydraColor' :
-                   type === 'coord' ? 'hydraCoord' :
-                   type === 'combine' ? 'hydraCombine' :
-                   type === 'combineCoord' ? 'hydraModulate' :
-                   type === 'external' ? 'hydraExternal' :
-                   type === 'output' ? 'hydraOutput' :
-                   type === 'source' ? 'hydraSource' : 'hydraOther'
-  
-  return isFunction ? `${baseClass}Func` : baseClass
-}
-
-const mapClasses = Object.entries(TYPE_ICONS).map(([type, icon]) => {
-  return `.cm-completionIcon-${type}:after { content: '${icon}', margin-right: 5em; }`
-})
-
-// CSS for completion classes
-const cssCompletionClasses = {
-  ".cm-completionIcon": {
-    marginRight: "1em"
-  },
-  ".cm-completionIcon.hydraSrcFunc::before": { 
-    content: '"ƒ"', color: "#fc6",
-  },
-  ".cm-completionIcon.hydraColorFunc::before": { 
-    content: '"ƒ"', color: "#f66",
-  },
-  ".cm-completionIcon.hydraCoordFunc::before": { 
-    content: '"ƒ"', color: "#6f6",
-  },
-  ".cm-completionIcon.hydraCombineFunc::before": { 
-    content: '"ƒ"', color: "#66f", 
-  },
-  ".cm-completionIcon.hydraModulateFunc::before": { 
-    content: '"ƒ"', color: "#f6f", 
-  },
-  ".cm-completionIcon.hydraExternalFunc::before": { 
-    content: '"ƒ"', color: "#6ff", 
-  },
-  
-  ".cm-completionIcon.hydraOutput::before": { 
-    content: '"⚡"', color: "#fc6", 
-  },
-  ".cm-completionIcon.hydraSource::before": { 
-    content: '"⚡"', color: "#6cf", 
-  },
-  ".cm-completionIcon.hydraOther::before": { 
-    content: '"◆"', color: "#999", 
-  },
-
-  // Add some general completion styling
-  ".cm-completionIcon": { 
-    color: "inherit",
-    width: "1em",
-    marginRight: "0.5em",
-  },
-  ".cm-completionLabel": { color: "inherit" },
-  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
-    padding: "4px 8px",
-    marginRight: "0.5em",
-  },
-  ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
-    background: "#2a2a2a"
-  }
-}
-
-const iconClasses = {}
-Object.entries(TYPE_ICONS).forEach(([type, icon]) => {
-  iconClasses[`.cm-completionIcon-${type}::after`] = { content: `"${icon}"` }
-})
-
-const completionTheme = EditorView.baseTheme({
-  ...mapClasses,
-  ...iconClasses,
-  ...cssCompletionClasses
-})
-
-// External source functions
-const EXTERNAL_SOURCES = {
-  initCam: {
-    type: 'external',
-    info: 'Initialize webcam as input source',
-    params: [
-      { name: 'index', type: 'number', default: '0', info: 'Webcam index (0 for default camera)' }
-    ]
-  },
-  initImage: {
-    type: 'external',
-    info: 'Initialize image as input source',
-    params: [
-      { name: 'url', type: 'string', info: 'URL of the image' }
-    ]
-  },
-  initVideo: {
-    type: 'external',
-    info: 'Initialize video as input source',
-    params: [
-      { name: 'url', type: 'string', info: 'URL of the video' }
-    ]
-  },
-  initStream: {
-    type: 'external',
-    info: 'Initialize stream as input source',
-    params: [
-      { name: 'name', type: 'string', info: 'Name of the stream to connect to' }
-    ]
-  },
-  initScreen: {
-    type: 'external',
-    info: 'Initialize screen capture as input source',
-    params: []
-  }
-}
-
-// Global variables available in Hydra
-const HYDRA_GLOBALS = {
-  time: { type: 'number', info: 'Current time in seconds' },
-  bpm: { type: 'number', info: 'Beats per minute' },
-  width: { type: 'number', info: 'Width of the output' },
-  height: { type: 'number', info: 'Height of the output' },
-  mouse: { 
-    type: 'object', 
-    info: 'Mouse position',
-    properties: {
-      x: { type: 'number', info: 'Mouse X position' },
-      y: { type: 'number', info: 'Mouse Y position' }
-    }
-  },
-  o0: { type: 'output', info: 'Output buffer 0' },
-  o1: { type: 'output', info: 'Output buffer 1' },
-  o2: { type: 'output', info: 'Output buffer 2' },
-  o3: { type: 'output', info: 'Output buffer 3' },
-  s0: { type: 'source', info: 'Source buffer 0' },
-  s1: { type: 'source', info: 'Source buffer 1' },
-  s2: { type: 'source', info: 'Source buffer 2' },
-  s3: { type: 'source', info: 'Source buffer 3' }
-}
-
-// Convert GLSL functions to completions format
-function convertToCompletions(functions) {
-  const completions = {}
-
-  // Add GLSL functions
-  functions().forEach(func => {
-    completions[func.name] = {
-      type: func.type,
-      info: `${TYPE_ICONS[func.type]} ${func.name} - ${func.type} function`,
-      params: func.inputs.map(input => ({
-        name: input.name,
-        type: input.type,
-        default: String(input.default),
-        info: `${input.name} (${input.type})`
-      }))
-    }
-  })
-
-  // Add external sources
-  Object.entries(EXTERNAL_SOURCES).forEach(([name, info]) => {
-    completions[name] = {
-      ...info,
-      info: `${TYPE_ICONS.external} ${info.info}`
-    }
-  })
-
-  return completions
-}
-
-// Get completions from hydra-synth
-export const hydraFunctions = convertToCompletions(glslFunctions)
+// example hydra code
+// osc(30,0.01,1)
+// .mult(osc(20,-0.1,1).modulate(noise(3,1)).rotate(0.7))
+// .posterize([3,10,2].fast(0.5).smooth(1))
+// .modulateRotate(o0,()=>mouse.x*0.003)
+// .out()
 
 function findFunctionContext(node, context) {
   let current = node;
@@ -272,43 +91,6 @@ function isChainableExpression(node) {
   return false;
 }
 
-function analyzeHeuristics(text, silent = false) {
-  const openParens = (text.match(/\(/g) || []).length
-  const closeParens = (text.match(/\)/g) || []).length
-  
-  // More detailed parameter detection
-  const maybeParameters = {
-    active: (openParens % 2 !== closeParens % 2) || /\([^)]*$/.test(text),
-    reason: openParens !== closeParens ? 'unbalanced_parens' : 
-            /\([^)]*$/.test(text) ? 'inside_parens' : null
-  }
-
-  const lastThree = text.slice(-3)
-  // More detailed method chain detection
-  const maybeMethodChainFunc = {
-    active: /[)\.]$/.test(lastThree) || /\.\w*$/.test(text),
-    reason: /[)\.]$/.test(lastThree) ? 'ends_with_dot_or_paren' :
-            /\.\w*$/.test(text) ? 'partial_method_name' : null
-  }
-
-  // More detailed source detection
-  const maybeSource = {
-    active: /^[\s\n]*$/.test(text) || /\bout\(\)[;\s]*$/.test(text) || text.length === 0,
-    reason: /^[\s\n]*$/.test(text) ? 'line_start' :
-            /\bout\(\)[;\s]*$/.test(text) ? 'after_out' :
-            text.length === 0 ? 'empty' : null
-  }
-
-  if (!silent && (maybeParameters.active || maybeMethodChainFunc.active || maybeSource.active)) {
-    console.warn('Heuristics Analysis:', {
-      maybeParameters,
-      maybeMethodChainFunc,
-      maybeSource
-    })
-  }
-  return { maybeParameters, maybeMethodChainFunc, maybeSource }
-}
-
 // Helper for structured logging
 function logDecision(phase, details) {
   console.warn(`🔍 [${phase}]`, details)
@@ -341,7 +123,7 @@ export function hydraSuggestions(context) {
     cursorCol
   })
 
-  const heuristics = analyzeHeuristics(beforeCursor)
+  const heuristics = analyzeHeuristicsToBebuggASTSearches(beforeCursor)
 
   // Get the token before the cursor
   let before = context.matchBefore(/[\w.$]*$/)
@@ -532,9 +314,7 @@ export function hydraSuggestions(context) {
             options.push({
               label: name,
               type: info.type,
-              // info: info.info,
               apply: name,
-              class: getCompletionClass('output')
             })
           }
         }
@@ -547,9 +327,7 @@ export function hydraSuggestions(context) {
             options.push({
               label: name,
               type: info.type,
-              // info: info.info,
               apply: name,
-              class: getCompletionClass(info.type)
             })
           }
         }
@@ -559,40 +337,16 @@ export function hydraSuggestions(context) {
             options.push({
               label: `${name}()`,  // Show parentheses in label
               type: info.type,
-              // info: `${TYPE_ICONS[info.type]} ${name}() - Source generator`,
               apply: name,
-              class: getCompletionClass('src', true)
             })
           }
         }
       } else {
-        // Regular parameter - show default value and add number suggestions
-        if (param.type === 'number') {
-          const defaultVal = parseFloat(param.default)
-          const suggestions = [0, 0.1, 0.5, 1, 2, 10]
-          if (!suggestions.includes(defaultVal)) {
-            suggestions.push(defaultVal)
-          }
-          suggestions.sort((a, b) => a - b)
-          
-          suggestions.forEach(val => {
-            options.push({
-              label: String(val),
-              type: param.type,
-              // info: `${param.name}: number = ${val}`,
-              apply: String(val),
-              class: getCompletionClass('other')
-            })
-          })
-        } else if (param.default !== undefined) {
-          options.push({
-            label: param.default,
-            type: param.type,
-            // info: `${param.name}: ${param.type} = ${param.default}`,
-            apply: param.default,
-            class: getCompletionClass('other')
-          })
-        }
+        options.push({
+          label: String(param.default),
+          type: param.type,
+          apply: String(param.default),
+        })
       }
     }
   }
@@ -604,9 +358,7 @@ export function hydraSuggestions(context) {
         options.push({
           label: `.${name}()`,  // Show parentheses in label
           type: info.type,
-          // info: `${TYPE_ICONS[info.type]} ${name}() - ${info.type} function`,
           apply: `.${name}`,
-          class: getCompletionClass(info.type, true)
         })
       }
     }
@@ -614,9 +366,7 @@ export function hydraSuggestions(context) {
     options.push({
       label: `.out()`,
       type: 'output',
-      // info: '⚡ out() - Output to buffer',
       apply: '.out()',
-      class: getCompletionClass('output', true)
     })
   }
   // Only show source generators and globals at the start of a line
@@ -626,9 +376,7 @@ export function hydraSuggestions(context) {
         options.push({
           label: `${name}()`,  // Show parentheses in label
           type: info.type,
-          // info: `${TYPE_ICONS[info.type]} ${name}() - ${info.type === 'src' ? 'Source generator' : 'External source'}`,
           apply: name,
-          class: getCompletionClass(info.type, true)
         })
       }
     }
@@ -638,8 +386,6 @@ export function hydraSuggestions(context) {
         options.push({
           label: name,
           type: info.type,
-          info: info.info,
-          class: getCompletionClass(info.type)
         })
       }
     }
@@ -750,7 +496,6 @@ export function hydraSuggestions(context) {
       label: opt.label,
       type: opt.type,
       apply: opt.apply,
-      class: opt.class
     })),
     context: {
       afterDot,
@@ -768,22 +513,7 @@ export function hydraSuggestions(context) {
   }
 }
 
-// // Create formatted documentation
-// function createCompletionInfo(name, info) {
-//   if (!info.params?.length) return info.info
-  
-//   // Create a concise parameter list like: (freq: number = 60, sync: number = 0.1)
-//   const params = info.params
-//     .map(p => `${p.name}: ${p.type}${p.default ? ` = ${p.default}` : ''}`)
-//     .join(', ')
-  
-//   return `${info.info} (${params})`
-// }
 
-// setTimeout(() => {
-//   console.log('hydraFunctions', hydraFunctions)
-//   debugger
-// }, 10000)
 
 // Create the completion extension
 export const hydraCompletion = {

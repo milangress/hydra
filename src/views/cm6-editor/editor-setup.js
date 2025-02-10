@@ -10,7 +10,7 @@ import {autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap} fr
 import {lintKeymap} from "@codemirror/lint"
 import { oneDark, oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 import { hydraSyntaxStyle, hydraEditorTheme } from "./hydra-cm6-theme.js";
-import { hydraSuggestions, hydraCompletionTheme } from "./hydra-completions.js";
+import { hydraSuggestions, hydraCompletionTheme } from "./hydra-completions/index.js";
 import { draggableNumbers, draggableNumbersTheme } from "./hydra-drag-values.js";
 // import { bracketMatching } from "@codemirror/matchbrackets"
 
