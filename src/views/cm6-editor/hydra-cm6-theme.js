@@ -33,7 +33,7 @@ export const hydraSyntaxStyle = HighlightStyle.define([
       width: '100%',
       height: '100%',
       // color: 'white',
-      fontFamily: `'Roboto Mono', monospace`,
+      fontFamily: `'Semiotiki', monospace`,
       // mixBlendMode: 'difference'
     },
     '& .cm-content': {
@@ -44,7 +44,7 @@ export const hydraSyntaxStyle = HighlightStyle.define([
         backgroundColor: 'transparent',
     },
     '& .cm-scroller': {
-      fontFamily: `'Roboto Mono', monospace`
+      fontFamily: `'Semiotiki', monospace`
     },
     '& .cm-focused': {
         background: 'hsla(50,23%,5%,0.6)',
@@ -90,31 +90,31 @@ export const hydraSyntaxStyle = HighlightStyle.define([
       // color: '#abb2bf',
       padding: '1.5px 9px'
     },
-    '.cm-completionIcon': {
-      width: '4px',
-      height: '10px',
-      opacity: 1,
-      paddingRight: '0px',
-      marginRight: '6px'
-    },
-    '.cm-completionIcon-src': {
-      backgroundColor: 'orange',
-    },
-    '.cm-completionIcon-coord': {
-      backgroundColor: 'yellow',
-    },
-    '.cm-completionIcon-color': {
-      backgroundColor: 'lightgreen',
-    },
-    '.cm-completionIcon-combine': {
-      backgroundColor: 'lightblue',
-    },
-    '.cm-completionIcon-combineCoord': {
-      backgroundColor: 'purple',
-    },
-    '.cm-completionIcon-src:after': {
-      content: 'ƒ'
-    },
+    // '.cm-completionIcon': {
+    //   width: '4px',
+    //   height: '10px',
+    //   opacity: 1,
+    //   paddingRight: '0px',
+    //   marginRight: '6px'
+    // },
+    // '.cm-completionIcon-src': {
+    //   backgroundColor: 'orange',
+    // },
+    // '.cm-completionIcon-coord': {
+    //   backgroundColor: 'yellow',
+    // },
+    // '.cm-completionIcon-color': {
+    //   backgroundColor: 'lightgreen',
+    // },
+    // '.cm-completionIcon-combine': {
+    //   backgroundColor: 'lightblue',
+    // },
+    // '.cm-completionIcon-combineCoord': {
+    //   backgroundColor: 'purple',
+    // },
+    // '.cm-completionIcon-src:after': {
+    //   content: 'ƒ'
+    // },
     // linter styles
     '.cm-panels': {
       background: 'none',

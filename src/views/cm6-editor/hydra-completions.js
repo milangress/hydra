@@ -4,13 +4,13 @@ import {syntaxTree} from "@codemirror/language"
 import { EditorView } from "@codemirror/view"
 // Function type to icon mapping
 const TYPE_ICONS = {
-  src: '🎨 ', // Source generators
-  coord: '📐 ', // Geometry operations
-  color: '🎯 ', // Color operations
-  combine: '🔀 ', // Blend operations
-  combineCoord: '🔄 ', // Modulate operations
-  external: '📡 ',  // External sources
-  output: '⚡ '  // Output buffers
+  src: '🏞️ ', // Source generators
+  coord: '💥 ', // Geometry operations
+  color: '🤒 ', // Color operations
+  combine: '💯 ', // Blend operations
+  combineCoord: '🍣 ', // Modulate operations
+  external: '⛓️ ',  // External sources
+  output: '🌍 '  // Output buffers
 }
 
 
@@ -34,7 +34,7 @@ function getCompletionClass(type, isFunction = false) {
 }
 
 const mapClasses = Object.entries(TYPE_ICONS).map(([type, icon]) => {
-  return `.cm-completionIcon-${type}:after { content: '${icon}'; }`
+  return `.cm-completionIcon-${type}:after { content: '${icon}', margin-right: 5em; }`
 })
 
 // CSS for completion classes
@@ -196,108 +196,59 @@ function findFunctionContext(node, context) {
   let functionName = null;
   let paramIndex = 0;
 
-  // Helper to get function name from node
-  function getFunctionNameFromNode(node) {
-    if (!node) return null;
-    if (node.type.name === 'PropertyName') {
-      // Get the actual text content of the node
-      return context.state.doc.sliceString(node.from, node.to);
-    }
-    if (node.type.name === 'VariableName') {
-      return context.state.doc.sliceString(node.from, node.to);
-    }
-    return null;
-  }
-
-  // Find the innermost CallExpression that contains our node
-  function findContainingCallExpression(node, current) {
-    while (current && current._parent) {
-      if (current.type.name === 'CallExpression') {
-        // Check if this call expression contains our node in its arguments
-        let argList = current.getChild('ArgList');
-        if (argList) {
-          let child = argList.firstChild;
-          while (child) {
-            if (child === node || child.from <= node.from && child.to >= node.to) {
-              return current;
-            }
-            child = child.nextSibling;
-          }
-        }
-      }
-      current = current._parent;
-    }
-    return null;
-  }
-
-  // Walk up the tree to find function context
+  // First find the ArgList we're in
   while (current && current._parent) {
     if (current.type.name === 'ArgList') {
-      // Found parameter list, now find the function name
-      let callNode = current._parent;
-
-      // Count commas before our position to determine parameter index
-      if (current.firstChild) {
-        let child = current.firstChild;
-        let pos = node.from;
-        while (child) {
-          if (child.type.name === ',') {
-            if (child.from < pos) {
-              paramIndex++;
-            }
-          }
-          child = child.nextSibling;
-        }
-      }
-
-      // Find the innermost call expression that contains our node
-      let targetCallExpr = findContainingCallExpression(node, callNode);
-      if (targetCallExpr) {
-        // For method calls like osc().color()
-        if (targetCallExpr._parent?.type.name === 'MemberExpression') {
-          functionName = getFunctionNameFromNode(targetCallExpr._parent.lastChild);
-        } else {
-          // For direct calls like osc()
-          functionName = getFunctionNameFromNode(targetCallExpr.firstChild);
-        }
-      }
-
-      // If we still don't have a function name, try to find it in the chain
-      if (!functionName) {
-        let chainNode = current;
-        while (chainNode && !functionName) {
-          if (chainNode.type.name === 'MemberExpression') {
-            // Get the actual text of the last child
-            let lastChild = chainNode.lastChild;
-            if (lastChild) {
-              functionName = context.state.doc.sliceString(lastChild.from, lastChild.to);
-              console.log('Found function in chain:', {
-                type: lastChild.type.name,
-                text: functionName,
-                node: lastChild
-              });
-            }
-            break;
-          }
-          if (chainNode.type.name === 'CallExpression' && 
-              chainNode._parent?.type.name === 'MemberExpression') {
-            let lastChild = chainNode._parent.lastChild;
-            if (lastChild) {
-              functionName = context.state.doc.sliceString(lastChild.from, lastChild.to);
-              console.log('Found function in call expression:', {
-                type: lastChild.type.name,
-                text: functionName,
-                node: lastChild
-              });
-            }
-            break;
-          }
-          chainNode = chainNode._parent;
-        }
-      }
       break;
     }
     current = current._parent;
+  }
+
+  if (!current) return { functionName: null, paramIndex: 0 };
+
+  // Get the parent CallExpression
+  let callExpr = current._parent;
+  if (!callExpr || callExpr.type.name !== 'CallExpression') {
+    return { functionName: null, paramIndex: 0 };
+  }
+
+  // Count commas before our position to determine parameter index
+  if (current.firstChild) {
+    let child = current.firstChild;
+    let pos = node.from;
+    while (child) {
+      if (child.type.name === ',') {
+        if (child.from < pos) {
+          paramIndex++;
+        }
+      }
+      child = child.nextSibling;
+    }
+  }
+
+  // If the CallExpression is part of a MemberExpression, get its name
+  let parent = callExpr._parent;
+  if (parent?.type.name === 'MemberExpression') {
+    let propName = parent.lastChild;
+    if (propName && propName.type.name === 'PropertyName') {
+      functionName = context.state.doc.sliceString(propName.from, propName.to);
+      console.log('Found function in member expression:', {
+        functionName,
+        nodeType: propName.type.name,
+        parentType: parent.type.name,
+        text: context.state.doc.sliceString(callExpr.from, callExpr.to)
+      });
+    }
+  } else {
+    // Otherwise, try to get the name from the CallExpression itself
+    if (callExpr.firstChild && callExpr.firstChild.type.name === 'VariableName') {
+      functionName = context.state.doc.sliceString(callExpr.firstChild.from, callExpr.firstChild.to);
+      console.log('Found direct function call:', {
+        functionName,
+        nodeType: callExpr.firstChild.type.name,
+        text: context.state.doc.sliceString(callExpr.from, callExpr.to)
+      });
+    }
   }
 
   return { functionName, paramIndex };
@@ -406,6 +357,11 @@ export function hydraSuggestions(context) {
   // Initialize options array here
   let options = []
 
+  // Initialize function detection variables
+  let afterFunction = false
+  let lastFunctionName = null
+  let node = nodeBefore
+
   // Debug node types and structure
   console.log('Node Structure:', {
     nodeBeforeBefore: {
@@ -448,13 +404,12 @@ export function hydraSuggestions(context) {
     inChain,
     nodeType: nodeBefore.type.name,
     parentType: nodeBefore._parent?.type.name,
-    grandparentType: nodeBefore._parent?._parent?.type.name
+    grandparentType: nodeBefore._parent?._parent?.type.name,
+    afterFunction,
+    afterDot,
+    lastFunctionName,
+    nodeText: context.state.doc.sliceString(nodeBefore.from, nodeBefore.to)
   })
-
-  // Check if we're after a function call
-  let afterFunction = false
-  let lastFunctionName = null
-  let node = nodeBefore
 
   // Helper to get function name from node
   function getFunctionNameFromNode(node) {
@@ -469,6 +424,7 @@ export function hydraSuggestions(context) {
     return null;
   }
 
+  // Check if we're after a function call
   while (node && node._parent) {
     console.log('Node traversal:', {
       currentType: node.type.name,
@@ -576,7 +532,7 @@ export function hydraSuggestions(context) {
             options.push({
               label: name,
               type: info.type,
-              info: info.info,
+              // info: info.info,
               apply: name,
               class: getCompletionClass('output')
             })
@@ -591,7 +547,7 @@ export function hydraSuggestions(context) {
             options.push({
               label: name,
               type: info.type,
-              info: info.info,
+              // info: info.info,
               apply: name,
               class: getCompletionClass(info.type)
             })
@@ -603,7 +559,7 @@ export function hydraSuggestions(context) {
             options.push({
               label: `${name}()`,  // Show parentheses in label
               type: info.type,
-              info: `${TYPE_ICONS[info.type]} ${name}() - Source generator`,
+              // info: `${TYPE_ICONS[info.type]} ${name}() - Source generator`,
               apply: name,
               class: getCompletionClass('src', true)
             })
@@ -623,7 +579,7 @@ export function hydraSuggestions(context) {
             options.push({
               label: String(val),
               type: param.type,
-              info: `${param.name}: number = ${val}`,
+              // info: `${param.name}: number = ${val}`,
               apply: String(val),
               class: getCompletionClass('other')
             })
@@ -632,7 +588,7 @@ export function hydraSuggestions(context) {
           options.push({
             label: param.default,
             type: param.type,
-            info: `${param.name}: ${param.type} = ${param.default}`,
+            // info: `${param.name}: ${param.type} = ${param.default}`,
             apply: param.default,
             class: getCompletionClass('other')
           })
@@ -641,14 +597,37 @@ export function hydraSuggestions(context) {
     }
   }
   // At the start of a line or after out(), show source generators
-  else {
+  else if ((afterDot || afterFunction) && !inParameters && lastFunctionName !== 'out') {
+    // Show chainable methods
+    for (let [name, info] of Object.entries(hydraFunctions)) {
+      if (['color', 'coord', 'combine', 'combineCoord'].includes(info.type)) {
+        options.push({
+          label: `.${name}()`,  // Show parentheses in label
+          type: info.type,
+          // info: `${TYPE_ICONS[info.type]} ${name}() - ${info.type} function`,
+          apply: `.${name}`,
+          class: getCompletionClass(info.type, true)
+        })
+      }
+    }
+    // Add .out() as a chainable method
+    options.push({
+      label: `.out()`,
+      type: 'output',
+      // info: '⚡ out() - Output to buffer',
+      apply: '.out()',
+      class: getCompletionClass('output', true)
+    })
+  }
+  // Only show source generators and globals at the start of a line
+  else if (!inParameters && !afterDot && !afterFunction) {
     for (let [name, info] of Object.entries(hydraFunctions)) {
       if (info.type === 'src' || info.type === 'external') {
         options.push({
           label: `${name}()`,  // Show parentheses in label
           type: info.type,
-          info: `${TYPE_ICONS[info.type]} ${name}() - ${info.type === 'src' ? 'Source generator' : 'External source'}`,
-          apply: `${name}`,
+          // info: `${TYPE_ICONS[info.type]} ${name}() - ${info.type === 'src' ? 'Source generator' : 'External source'}`,
+          apply: name,
           class: getCompletionClass(info.type, true)
         })
       }
