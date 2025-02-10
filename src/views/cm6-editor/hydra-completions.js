@@ -423,9 +423,8 @@ export function hydraSuggestions(context) {
   if ((afterDot || afterFunction) && !inParameters && lastFunctionName !== 'out') {
     for (let [name, info] of Object.entries(hydraFunctions)) {
       if (['color', 'coord', 'combine', 'combineCoord'].includes(info.type)) {
-        const methodName = afterDot ? name : `.${name}`
         options.push({
-          label: `.${methodName}()`,  // Show parentheses in label
+          label: `.${name}()`,  // Show parentheses in label
           type: info.type,
           info: `${TYPE_ICONS[info.type]} ${name}() - ${info.type} function`,
           apply: `.${name}`,
@@ -434,12 +433,11 @@ export function hydraSuggestions(context) {
       }
     }
     // Add .out() as a chainable method
-    const outName = afterDot ? 'out' : '.out'
     options.push({
-      label: `.${outName}()`,
+      label: `.out()`,
       type: 'output',
       info: '⚡ out() - Output to buffer',
-      apply: afterDot ? 'out()' : '.out()',
+      apply: '.out()',
       class: getCompletionClass('output', true)
     })
   }
