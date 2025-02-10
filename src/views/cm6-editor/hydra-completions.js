@@ -4,12 +4,13 @@ import {syntaxTree} from "@codemirror/language"
 import { EditorView } from "@codemirror/view"
 // Function type to icon mapping
 const TYPE_ICONS = {
-  src: '🎨', // Source generators
-  coord: '📐', // Geometry operations
-  color: '🎯', // Color operations
-  combine: '🔀', // Blend operations
-  combineCoord: '🔄', // Modulate operations
-  external: '📡'  // External sources
+  src: '🎨 ', // Source generators
+  coord: '📐 ', // Geometry operations
+  color: '🎯 ', // Color operations
+  combine: '🔀 ', // Blend operations
+  combineCoord: '🔄 ', // Modulate operations
+  external: '📡 ',  // External sources
+  output: '⚡ '  // Output buffers
 }
 
 
@@ -31,6 +32,10 @@ function getCompletionClass(type, isFunction = false) {
   
   return isFunction ? `${baseClass}Func` : baseClass
 }
+
+const mapClasses = Object.entries(TYPE_ICONS).map(([type, icon]) => {
+  return `.cm-completionIcon-${type}:after { content: '${icon}'; }`
+})
 
 // CSS for completion classes
 const cssCompletionClasses = {
@@ -67,10 +72,15 @@ const cssCompletionClasses = {
   },
 
   // Add some general completion styling
-  ".cm-completionIcon": { color: "inherit" },
+  ".cm-completionIcon": { 
+    color: "inherit",
+    width: "1em",
+    marginRight: "0.5em",
+  },
   ".cm-completionLabel": { color: "inherit" },
   ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
-    padding: "4px 8px"
+    padding: "4px 8px",
+    marginRight: "0.5em",
   },
   ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
     background: "#2a2a2a"
@@ -83,6 +93,7 @@ Object.entries(TYPE_ICONS).forEach(([type, icon]) => {
 })
 
 const completionTheme = EditorView.baseTheme({
+  ...mapClasses,
   ...iconClasses,
   ...cssCompletionClasses
 })
@@ -180,7 +191,7 @@ function convertToCompletions(functions) {
 // Get completions from hydra-synth
 export const hydraFunctions = convertToCompletions(glslFunctions)
 
-function findFunctionContext(node) {
+function findFunctionContext(node, context) {
   let current = node;
   let functionName = null;
   let paramIndex = 0;
@@ -189,10 +200,11 @@ function findFunctionContext(node) {
   function getFunctionNameFromNode(node) {
     if (!node) return null;
     if (node.type.name === 'PropertyName') {
-      return node.name;
+      // Get the actual text content of the node
+      return context.state.doc.sliceString(node.from, node.to);
     }
     if (node.type.name === 'VariableName') {
-      return node.name;
+      return context.state.doc.sliceString(node.from, node.to);
     }
     return null;
   }
@@ -255,12 +267,29 @@ function findFunctionContext(node) {
         let chainNode = current;
         while (chainNode && !functionName) {
           if (chainNode.type.name === 'MemberExpression') {
-            functionName = getFunctionNameFromNode(chainNode.lastChild);
+            // Get the actual text of the last child
+            let lastChild = chainNode.lastChild;
+            if (lastChild) {
+              functionName = context.state.doc.sliceString(lastChild.from, lastChild.to);
+              console.log('Found function in chain:', {
+                type: lastChild.type.name,
+                text: functionName,
+                node: lastChild
+              });
+            }
             break;
           }
           if (chainNode.type.name === 'CallExpression' && 
               chainNode._parent?.type.name === 'MemberExpression') {
-            functionName = getFunctionNameFromNode(chainNode._parent.lastChild);
+            let lastChild = chainNode._parent.lastChild;
+            if (lastChild) {
+              functionName = context.state.doc.sliceString(lastChild.from, lastChild.to);
+              console.log('Found function in call expression:', {
+                type: lastChild.type.name,
+                text: functionName,
+                node: lastChild
+              });
+            }
             break;
           }
           chainNode = chainNode._parent;
@@ -292,6 +321,48 @@ function isChainableExpression(node) {
   return false;
 }
 
+function analyzeHeuristics(text, silent = false) {
+  const openParens = (text.match(/\(/g) || []).length
+  const closeParens = (text.match(/\)/g) || []).length
+  
+  // More detailed parameter detection
+  const maybeParameters = {
+    active: (openParens % 2 !== closeParens % 2) || /\([^)]*$/.test(text),
+    reason: openParens !== closeParens ? 'unbalanced_parens' : 
+            /\([^)]*$/.test(text) ? 'inside_parens' : null
+  }
+
+  const lastThree = text.slice(-3)
+  // More detailed method chain detection
+  const maybeMethodChainFunc = {
+    active: /[)\.]$/.test(lastThree) || /\.\w*$/.test(text),
+    reason: /[)\.]$/.test(lastThree) ? 'ends_with_dot_or_paren' :
+            /\.\w*$/.test(text) ? 'partial_method_name' : null
+  }
+
+  // More detailed source detection
+  const maybeSource = {
+    active: /^[\s\n]*$/.test(text) || /\bout\(\)[;\s]*$/.test(text) || text.length === 0,
+    reason: /^[\s\n]*$/.test(text) ? 'line_start' :
+            /\bout\(\)[;\s]*$/.test(text) ? 'after_out' :
+            text.length === 0 ? 'empty' : null
+  }
+
+  if (!silent && (maybeParameters.active || maybeMethodChainFunc.active || maybeSource.active)) {
+    console.warn('Heuristics Analysis:', {
+      maybeParameters,
+      maybeMethodChainFunc,
+      maybeSource
+    })
+  }
+  return { maybeParameters, maybeMethodChainFunc, maybeSource }
+}
+
+// Helper for structured logging
+function logDecision(phase, details) {
+  console.warn(`🔍 [${phase}]`, details)
+}
+
 // Create completion function
 export function hydraSuggestions(context) {
   // during tinkering this has to stay here. dont remove!!
@@ -319,6 +390,8 @@ export function hydraSuggestions(context) {
     cursorCol
   })
 
+  const heuristics = analyzeHeuristics(beforeCursor)
+
   // Get the token before the cursor
   let before = context.matchBefore(/[\w.$]*$/)
   if (!before) return null
@@ -330,16 +403,53 @@ export function hydraSuggestions(context) {
     to: before.to
   })
 
+  // Initialize options array here
+  let options = []
+
+  // Debug node types and structure
+  console.log('Node Structure:', {
+    nodeBeforeBefore: {
+      type: nodeBeforeBefore.type.name,
+      text: context.state.doc.sliceString(nodeBeforeBefore.from, nodeBeforeBefore.to),
+      parent: nodeBeforeBefore._parent?.type.name
+    },
+    nodeBefore: {
+      type: nodeBefore.type.name,
+      text: context.state.doc.sliceString(nodeBefore.from, nodeBefore.to),
+      parent: nodeBefore._parent?.type.name
+    },
+    nodeMe: {
+      type: nodeMe.type.name,
+      text: context.state.doc.sliceString(nodeMe.from, nodeMe.to),
+      parent: nodeMe._parent?.type.name
+    }
+  })
+
   // Check if we're after a dot using syntax tree
   let afterDot = nodeBefore.type.name === '.' || 
                  (nodeBeforeBefore.type.name === '.' && nodeBefore.type.name === 'VariableName') ||
-                 before.text.startsWith('.')
+                 before.text.startsWith('.') ||
+                 // Add this case for dots after completed function calls
+                 (nodeBefore.type.name === 'MemberExpression' && lineText.endsWith('.'))
 
-  console.log('afterDot', afterDot)
+  console.log('Dot Detection:', {
+    afterDot,
+    conditions: {
+      nodeBeforeIsDot: nodeBefore.type.name === '.',
+      dotAndVariable: nodeBeforeBefore.type.name === '.' && nodeBefore.type.name === 'VariableName',
+      startsWithDot: before.text.startsWith('.'),
+      afterCompletedCall: nodeBefore.type.name === 'MemberExpression' && lineText.endsWith('.')
+    }
+  })
 
   // Check if we're in a chainable context
   let inChain = isChainableExpression(nodeBefore)
-  console.log('inChain', inChain)
+  console.log('Chain Detection:', {
+    inChain,
+    nodeType: nodeBefore.type.name,
+    parentType: nodeBefore._parent?.type.name,
+    grandparentType: nodeBefore._parent?._parent?.type.name
+  })
 
   // Check if we're after a function call
   let afterFunction = false
@@ -350,16 +460,24 @@ export function hydraSuggestions(context) {
   function getFunctionNameFromNode(node) {
     if (!node) return null;
     if (node.type.name === 'PropertyName') {
-      return node.name;
+      // Get the actual text content of the node
+      return context.state.doc.sliceString(node.from, node.to);
     }
     if (node.type.name === 'VariableName') {
-      return node.name;
+      return context.state.doc.sliceString(node.from, node.to);
     }
     return null;
   }
 
   while (node && node._parent) {
-    if (node.type.name === 'CallExpression') {
+    console.log('Node traversal:', {
+      currentType: node.type.name,
+      parentType: node._parent.type.name,
+      text: context.state.doc.sliceString(node.from, node.to)
+    });
+
+    if (node.type.name === 'CallExpression' || 
+        (node.type.name === 'MemberExpression' && node.lastChild?.type.name === 'CallExpression')) {
       // Try to get function name from member expression
       if (node._parent?.type.name === 'MemberExpression') {
         lastFunctionName = getFunctionNameFromNode(node._parent.lastChild);
@@ -368,6 +486,11 @@ export function hydraSuggestions(context) {
         lastFunctionName = getFunctionNameFromNode(node.firstChild);
       }
       afterFunction = true;
+      console.log('Found function call:', {
+        lastFunctionName,
+        nodeType: node.type.name,
+        parentType: node._parent?.type.name
+      });
       break;
     }
     
@@ -375,6 +498,10 @@ export function hydraSuggestions(context) {
     if (node.type.name === 'MemberExpression') {
       lastFunctionName = getFunctionNameFromNode(node.lastChild);
       afterFunction = true;
+      console.log('Found member expression:', {
+        lastFunctionName,
+        lastChildType: node.lastChild?.type.name
+      });
       break;
     }
 
@@ -382,16 +509,37 @@ export function hydraSuggestions(context) {
     if (node.type.name === 'PropertyName') {
       lastFunctionName = node.name;
       afterFunction = true;
+      console.log('Found property name:', {
+        lastFunctionName,
+        nodeText: context.state.doc.sliceString(node.from, node.to)
+      });
       break;
     }
 
     node = node._parent;
   }
 
-  console.log('afterFunction', afterFunction, 'lastFunction', lastFunctionName, 'node type', node?.type.name)
+  // Find function context using AST first
+  const { functionName, paramIndex } = findFunctionContext(nodeMe, context)
 
-  // Find function context using AST
-  const { functionName, paramIndex } = findFunctionContext(nodeMe)
+  // Add detailed function name resolution logging
+  console.log('🔍 Function Name Resolution:', {
+    raw: {
+      functionName,
+      lastFunctionName,
+      paramIndex
+    },
+    nodeInfo: {
+      type: nodeMe.type.name,
+      text: context.state.doc.sliceString(nodeMe.from, nodeMe.to),
+      parent: nodeMe._parent?.type.name
+    },
+    context: {
+      inParameters: !!functionName,
+      afterFunction,
+      afterDot
+    }
+  });
 
   // Check if we're inside function parameters by looking for ArgList node
   const inParameters = nodeMe.type.name === 'ArgList' || 
@@ -399,55 +547,27 @@ export function hydraSuggestions(context) {
                       !!functionName
 
   if (inParameters) {
-    // Get the actual function name, with better fallback logic
-    const actualFunctionName = functionName || lastFunctionName;
-    
-    console.log('inParameters (AST)', { 
-      functionName: actualFunctionName,
-      paramIndex, 
-      nodeType: nodeMe.type.name,
-      nodeStructure: {
-        current: nodeMe.type.name,
-        parent: nodeMe._parent?.type.name,
-        grandparent: nodeMe._parent?._parent?.type.name,
-        greatGrandparent: nodeMe._parent?._parent?._parent?.type.name,
-        functionNameSource: functionName ? 'direct' : lastFunctionName ? 'chain' : 'none'
-      }
-    })
-  }
-
-  let options = []
-
-  // After a dot or after a function call, show chainable methods
-  // But only if we're not after an out() call
-  if ((afterDot || afterFunction) && !inParameters && lastFunctionName !== 'out') {
-    for (let [name, info] of Object.entries(hydraFunctions)) {
-      if (['color', 'coord', 'combine', 'combineCoord'].includes(info.type)) {
-        options.push({
-          label: `.${name}()`,  // Show parentheses in label
-          type: info.type,
-          info: `${TYPE_ICONS[info.type]} ${name}() - ${info.type} function`,
-          apply: `.${name}`,
-          class: getCompletionClass(info.type, true)
-        })
-      }
-    }
-    // Add .out() as a chainable method
-    options.push({
-      label: `.out()`,
-      type: 'output',
-      info: '⚡ out() - Output to buffer',
-      apply: '.out()',
-      class: getCompletionClass('output', true)
-    })
-  }
-  // Inside parameters, show parameter-appropriate completions
-  else if (inParameters) {
     // Use lastFunctionName as fallback if functionName is not found
-    const currentFunction = functionName || lastFunctionName
-    const func = hydraFunctions[currentFunction]
+    const currentFunction = functionName || lastFunctionName;
+    
+    // Log the function detection for debugging
+    console.log('Function Detection:', {
+      currentFunction,
+      functionName,
+      lastFunctionName,
+      nodeType: nodeMe.type.name
+    });
+    
+    const func = hydraFunctions[currentFunction];
+    
     if (func?.params && paramIndex < func.params.length) {
-      const param = func.params[paramIndex]
+      const param = func.params[paramIndex];
+      
+      console.log('Parameter Info:', {
+        function: currentFunction,
+        parameter: param,
+        index: paramIndex
+      });
       
       // Special handling for out() and render() - only show output buffers
       if (currentFunction === 'out' || currentFunction === 'render') {
@@ -546,6 +666,122 @@ export function hydraSuggestions(context) {
     }
   }
 
+  // Parameter completion validation
+  if (heuristics.maybeParameters.active) {
+    logDecision('Parameter Detection Validation', {
+      heuristicSaysParameters: true,
+      actuallyInParameters: inParameters,
+      mismatch: heuristics.maybeParameters.active !== inParameters,
+      heuristicReason: heuristics.maybeParameters.reason,
+      actualState: {
+        nodeMe: nodeMe.type.name,
+        nodeBefore: nodeBefore.type.name,
+        functionContext: {
+          functionName,
+          paramIndex,
+          foundVia: functionName ? 'direct' : lastFunctionName ? 'chain' : 'none'
+        },
+        syntaxEvidence: {
+          inArgList: nodeMe.type.name === 'ArgList',
+          nodeBeforeIsArgList: nodeBefore.type.name === 'ArgList',
+          hasFunction: !!functionName
+        }
+      }
+    })
+  }
+
+  // Method chain validation
+  if (heuristics.maybeMethodChainFunc.active) {
+    const shouldBeChainable = (afterDot || afterFunction) && !inParameters && lastFunctionName !== 'out'
+    logDecision('Method Chain Validation', {
+      heuristicSaysChain: true,
+      actuallyChainable: shouldBeChainable,
+      mismatch: heuristics.maybeMethodChainFunc.active !== shouldBeChainable,
+      heuristicReason: heuristics.maybeMethodChainFunc.reason,
+      actualState: {
+        afterDot: {
+          value: afterDot,
+          evidence: {
+            isDot: nodeBefore.type.name === '.',
+            dotAndVariable: nodeBeforeBefore.type.name === '.' && nodeBefore.type.name === 'VariableName',
+            startsWithDot: before.text.startsWith('.'),
+            afterMemberExpr: nodeBefore.type.name === 'MemberExpression' && lineText.endsWith('.')
+          }
+        },
+        afterFunction: {
+          value: afterFunction,
+          lastFunctionName,
+          nodeType: node?.type.name
+        },
+        blockingConditions: {
+          inParameters,
+          isOutFunction: lastFunctionName === 'out'
+        }
+      }
+    })
+  }
+
+  // Source completion validation
+  if (heuristics.maybeSource.active) {
+    const shouldShowSources = !inParameters && !afterDot && !afterFunction
+    logDecision('Source Completion Validation', {
+      heuristicSaysSource: true,
+      actuallyShowingSources: shouldShowSources,
+      mismatch: heuristics.maybeSource.active !== shouldShowSources,
+      heuristicReason: heuristics.maybeSource.reason,
+      actualState: {
+        blockingConditions: {
+          inParameters,
+          afterDot,
+          afterFunction
+        },
+        context: {
+          nodeType: nodeBefore.type.name,
+          lastFunctionName,
+          atLineStart: lineText.slice(0, cursorCol).trim().length === 0
+        }
+      }
+    })
+  }
+
+  // Log final decision with validation summary
+  logDecision('Final Decision Summary', {
+    heuristics: {
+      suggestedParameters: heuristics.maybeParameters.active,
+      suggestedChain: heuristics.maybeMethodChainFunc.active,
+      suggestedSource: heuristics.maybeSource.active
+    },
+    actualDecision: {
+      showingParameters: inParameters,
+      showingChainMethods: (afterDot || afterFunction) && !inParameters && lastFunctionName !== 'out',
+      showingSourceGenerators: !inParameters && !afterDot && !afterFunction
+    },
+    mismatches: {
+      parameters: heuristics.maybeParameters.active !== inParameters,
+      chain: heuristics.maybeMethodChainFunc.active !== ((afterDot || afterFunction) && !inParameters && lastFunctionName !== 'out'),
+      source: heuristics.maybeSource.active !== (!inParameters && !afterDot && !afterFunction)
+    }
+  })
+
+  // Log the final completions being returned
+  console.log('Returning Completions:', {
+    from: before.from,
+    validFor: afterDot ? /^\.[\w$]*$/ : /^[\w$]*$/,
+    completions: options.map(opt => ({
+      label: opt.label,
+      type: opt.type,
+      apply: opt.apply,
+      class: opt.class
+    })),
+    context: {
+      afterDot,
+      afterFunction,
+      inParameters,
+      inChain,
+      lastFunctionName
+    }
+  });
+
   return {
     from: before.from,
     options,
@@ -564,6 +800,11 @@ export function hydraSuggestions(context) {
   
 //   return `${info.info} (${params})`
 // }
+
+// setTimeout(() => {
+//   console.log('hydraFunctions', hydraFunctions)
+//   debugger
+// }, 10000)
 
 // Create the completion extension
 export const hydraCompletion = {

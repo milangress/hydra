@@ -1,6 +1,6 @@
 /* eslint-disable no-eval */
-import { EditorView } from "codemirror"
-import { placeholder, keymap } from "@codemirror/view"
+import { keymap, EditorView } from '@codemirror/view'
+import { placeholder } from "@codemirror/view"
 import { hydraSetup } from "./editor-setup.js"
 import { javascript } from "@codemirror/lang-javascript"
 import { flashCode, flashAll, flashTheme } from "./hydra-flash.js";
