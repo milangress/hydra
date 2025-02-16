@@ -15,10 +15,6 @@ import {
 // .modulateRotate(o0,()=>mouse.x*0.003)
 // .out()
 
-//osc(30).color(0,0,1).out()
-
-
-
 // Create completion function
 export function hydraSuggestions(context) {
   // during tinkering this has to stay here. dont remove!!
