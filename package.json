@@ -9,8 +9,9 @@
   },
   "scripts": {
     "test": "vitest",
-    "build": "vite build",
-    "dev": "vite . --host",
+    "build": "vite build --outDir dist",
+    "dev": "vite . --host --port 3000",
+    "preview": "vite preview --host --port 4000",
     "publish": "git subtree push --prefix=dist origin gh-pages",
     "generate-completions": "node src/views/cm6-editor/generate-completions.js"
   },
