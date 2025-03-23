@@ -8,7 +8,6 @@ const link = (url) => `href=${url} target=_blank`
 
 const infoText = (t) => html`
 <div class="modal-content">
-<div class="dev"> Hydra Experimental  Milan Gress • Feats: code-completions </div>
 <h1>${t('info.title')}</h1>
 <h3>${t('info.subtitle')}</h3>
   <br> ///////////////////////////////////////////////////////////<br>
@@ -57,7 +56,7 @@ export default function mainView(state, emit) {
 
 const header = html`<div></div>`
   const content = html`
-  <div>hello</div>
+<div> Hydra Experimental  Milan Gress • feats: code-completion</div>
   ${state.showInfo && langArray.length > 1 ? html`<div style="display:flex;flex-wrap:wrap">${langArray.map(([key, val]) => html`
   <div class="language-select" onclick=${() => emit('set language', key)}>${val}</div>
   `)}</div>` : html`<div> </div>`} 
