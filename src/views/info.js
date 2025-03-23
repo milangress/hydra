@@ -15,15 +15,15 @@ const coolifyfqdn = __COOLIFY_FQDN__
 
 const coolifyfqdnString = () => {
   if (coolifyfqdn) {
-    return ` with @${coolifyfqdn}`
+    return  ` @${coolifyfqdn}`
   }
   return ''
 }
 
 const infoText = (t) => html`
 <div class="modal-content">
-<div class="hydra-info">
-  <div class="version"><b>Hydra ${version}</b> ${coolifyfqdnString()}</div>
+<div class="hydra-info" style="font-family: monospace;color:fuchsia;">
+  <h2 class="version"><b>Hydra ${version}</b> ${coolifyfqdnString()}</h2>
   <div class="author">experimental dev-version by <em>Milan Gress</em></div>
   <div class="git-info">
     Branch: ${branch ?? 'unknown'}
@@ -32,7 +32,7 @@ const infoText = (t) => html`
     <br/>
     Built: ${buildDate ?? 'unknown'} with Node ${nodeVersion ?? 'unknown'} (${nodeEnv ?? 'unknown'}) 
     <br/>
-    $ <code> docker pull  <a href="https://hub.docker.com/r/milangress/hydra-dev">milangress/hydra-dev:${gitCommitHash}</a></code>
+    <code>docker pull  <a href="https://hub.docker.com/r/milangress/hydra-dev" style="color:inherit;">milangress/hydra-dev:${gitCommitHash}</a></code>
   </div>
 </div>
 <br> ///////////////////////////////////////////////////////////<br>
