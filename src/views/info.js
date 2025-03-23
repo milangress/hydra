@@ -4,10 +4,27 @@ import modalWindow from './modal-window.js'
 import extensionInfo from './extension-info.js'
 const link = (url) => `href=${url} target=_blank`
 
-
+const version = __APP_VERSION__
+const branch = __GIT_BRANCH__
+const commit = __GIT_COMMIT__
+const buildDate = __BUILD_DATE__
+const nodeEnv = __NODE_ENV__
+const nodeVersion = __NODE_VERSION__
 
 const infoText = (t) => html`
 <div class="modal-content">
+<div class="hydra-info">
+  <div class="version"><b>Hydra ${version}</b></div>
+  <div class="author">experimental de- version by <em>Milan Gress</em></div>
+  <div class="git-info">
+    Branch: ${branch}
+    <br/>
+    Last commit: ${commit}
+    <br/>
+    Built: ${buildDate} (${nodeEnv}) with Node ${nodeVersion}
+  </div>
+</div>
+<hr>
 <h1>${t('info.title')}</h1>
 <h3>${t('info.subtitle')}</h3>
   <br> ///////////////////////////////////////////////////////////<br>
@@ -54,9 +71,9 @@ export default function mainView(state, emit) {
   const langArray = Object.entries(languages)
 
 
+
 const header = html`<div></div>`
   const content = html`
-<div> Hydra Experimental  Milan Gress • feats: code-completion</div>
   ${state.showInfo && langArray.length > 1 ? html`<div style="display:flex;flex-wrap:wrap">${langArray.map(([key, val]) => html`
   <div class="language-select" onclick=${() => emit('set language', key)}>${val}</div>
   `)}</div>` : html`<div> </div>`} 
