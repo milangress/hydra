@@ -10,21 +10,32 @@ const commit = __GIT_COMMIT__
 const buildDate = __BUILD_DATE__
 const nodeEnv = __NODE_ENV__
 const nodeVersion = __NODE_VERSION__
+const gitCommitHash = __GIT_COMMIT_HASH__
+const coolifyfqdn = __COOLIFY_FQDN__
+
+const coolifyfqdnString = () => {
+  if (coolifyfqdn) {
+    return ` with @${coolifyfqdn}`
+  }
+  return ''
+}
 
 const infoText = (t) => html`
 <div class="modal-content">
 <div class="hydra-info">
-  <div class="version"><b>Hydra ${version}</b></div>
-  <div class="author">experimental de- version by <em>Milan Gress</em></div>
+  <div class="version"><b>Hydra ${version}</b> ${coolifyfqdnString()}</div>
+  <div class="author">experimental dev-version by <em>Milan Gress</em></div>
   <div class="git-info">
-    Branch: ${branch}
+    Branch: ${branch ?? 'unknown'}
     <br/>
-    Last commit: ${commit}
+    Last commit: ${commit ?? 'unknown'}
     <br/>
-    Built: ${buildDate} (${nodeEnv}) with Node ${nodeVersion}
+    Built: ${buildDate ?? 'unknown'} with Node ${nodeVersion ?? 'unknown'} (${nodeEnv ?? 'unknown'}) 
+    <br/>
+    $ <code> docker pull  <a href="https://hub.docker.com/r/milangress/hydra-dev">milangress/hydra-dev:${gitCommitHash}</a></code>
   </div>
 </div>
-<hr>
+<br> ///////////////////////////////////////////////////////////<br>
 <h1>${t('info.title')}</h1>
 <h3>${t('info.subtitle')}</h3>
   <br> ///////////////////////////////////////////////////////////<br>
